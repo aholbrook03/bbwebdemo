@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Boulder Boy Demo</title>
+		<style>
+			@font-face {
+					font-family: 'retro';
+					src: url('madness.ttf')
+			}
+		</style>
+    <script src="jquery-3.2.1.min.js"></script>
+    <script src="bundle.js"></script>
+	</head>
+	<body>
+    <canvas id="gamecanvas" width="600" height="600"></canvas>
+  	<script>
+      const game = require('game')
+      game.init($('#gamecanvas').get(0))
+
+      function frameCallback(currentTime) {
+        game.update(currentTime)
+        window.requestAnimationFrame(frameCallback)
+      }
+
+      window.requestAnimationFrame(frameCallback)
+  	</script>
+	</body>
+</html>
