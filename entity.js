@@ -13,8 +13,6 @@ const GameEntity = {
     components = []
     return {
       name: name,
-      x: 0, y: 0,
-      vx: 0, vy: 0,
       addComponent: function (c) {
         c.entity = this
         components.push(c)

@@ -24,7 +24,7 @@ const LogoScene = {
       const y = 0
       context.drawImage(this.logoImages[2],
         x, y,
-        canvasSize.width, canvasSize.height)
+        this.logoImages[2].width * .5, this.logoImages[2].height * .5)
     }
 
     return scene
