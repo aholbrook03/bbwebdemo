@@ -7,15 +7,148 @@ const GameConfig = {
     return tmpList
   })(),
   RESOURCE_LIST: ['world_01_loop.wav', 'tileset.png', 'logo0.png', 'logo1.png',
-    'logo2.png', 'logo3.png', 'tileset.json']
+    'logo2.png', 'logo3.png', 'tileset.json', 'Trailer_Theme_Ver1.mp3']
 }
 
 exports.GameConfig = GameConfig
 
 },{}],2:[function(require,module,exports){
+const GameComponent = {
+  create: function() {
+    return {
+      entity: null,
+      update: function(deltaTime) {
+      }
+    }
+  }
+}
+
+const GameEntity = {
+  create: function(name) {
+    components = []
+    return {
+      name: name,
+      addComponent: function (c) {
+        c.entity = this
+        components.push(c)
+      },
+      getComponents: () => components
+    }
+  }
+}
+
+exports.GameComponent = GameComponent
+exports.GameEntity = GameEntity
+
+},{}],3:[function(require,module,exports){
+const GameComponent = require('./entity').GameComponent
+
+const SpriteComponent = {
+  create: function() {
+    const component = GameComponent.create()
+    return component
+  }
+}
+
+const PlayerComponent = {
+  create: function() {
+    const component = GameComponent.create()
+    return component
+  }
+}
+
+exports.SpriteComponent = SpriteComponent
+
+},{"./entity":2}],4:[function(require,module,exports){
+const GameEntity = require('./entity').GameEntity
+const SpriteComponent = require('./game_components').SpriteComponent
+const ResourceMap = require('./resource').ResourceMap
+
+const BoulderBoy = {
+  create: function() {
+    const entity = GameEntity.create('Boulder Boy')
+    const spriteComponent = SpriteComponent.create()
+
+    return entity
+  }
+}
+
+const BlinkingLogo = {
+  create: function() {
+    const logoFrames = [
+      ResourceMap.get('logo1.png'), // eyes closed
+      ResourceMap.get('logo2.png'), // eyes partially closed
+      ResourceMap.get('logo3.png')  // eyes open
+    ]
+
+    const IDLE = 0
+    const OPENING_EYES = 1
+    const CLOSING_EYES = 2
+    let state = IDLE
+    let currentFrame = logoFrames.length - 1 // start with open eyes
+
+    let elapsedTime = 0
+    let blinkCount = 0
+    const blinkingStartDelay = 1000
+    const doubleBlinkDelay = 0
+    const blinkDelayPerFrame = 50
+
+    return {
+      update: function(deltaTime) {
+        elapsedTime += deltaTime
+        if (state === IDLE) {
+          if (blinkCount < 2) {
+            if (elapsedTime >= blinkingStartDelay) {
+              elapsedTime = 0
+              state = CLOSING_EYES
+            }
+          } else {
+            if (elapsedTime >= doubleBlinkDelay) {
+              elapsedTime = 0
+              state = CLOSING_EYES
+            }
+          }
+        } else {
+          while (elapsedTime >= blinkDelayPerFrame) {
+            elapsedTime -= blinkDelayPerFrame
+            if (state === CLOSING_EYES) {
+              currentFrame--
+              if (currentFrame <= 0) {
+                currentFrame = 0
+                state = OPENING_EYES
+              }
+            } else if (state === OPENING_EYES) {
+              currentFrame++
+              if (currentFrame >= logoFrames.length - 1) {
+                currentFrame = logoFrames.length - 1
+                blinkCount++
+                if (blinkCount === 3) blinkCount = 0
+                state = IDLE
+              }
+            }
+          }
+        }
+      },
+      render: function(context, x, y, scale) {
+        const logoWidth = logoFrames[currentFrame].width * scale
+        const logoHeight = logoFrames[currentFrame].height * scale
+        context.drawImage(logoFrames[currentFrame],
+          x - logoWidth / 2, y - logoHeight / 2,
+          logoWidth, logoHeight)
+      }
+    }
+  }
+}
+
+exports.BoulderBoy = BoulderBoy
+exports.BlinkingLogo = BlinkingLogo
+
+},{"./entity":2,"./game_components":3,"./resource":7}],5:[function(require,module,exports){
 const view = require('./view')
 const ResourceMap = require('./resource').ResourceMap
 const TileSet = require('./tilemap').TileSet
+const VerticalTileStrip = require('./tilemap').VerticalTileStrip
+const BlinkingLogo = require('./game_entities').BlinkingLogo
 
 const StageScene = {
   create: () => {
@@ -26,20 +159,64 @@ const StageScene = {
 
 const LogoScene = {
   create: () => {
+    const tileSet = TileSet.createFromJSON(ResourceMap.get('tileset.json'))
+
+    let tileStrip = VerticalTileStrip.create(tileSet,
+      [4, 4, 4, 4, 102, 101, 101, 193, 2, 2, 2, 129, 3, 3, 3, 3, 132, 704, 704,
+        704, 704])
+    let scrollingOffsetX = 0
+    const deltaOffsetX = 375.0 / 15000.0
+
+    const blinkingLogo = BlinkingLogo.create()
+    let displayText = false
     const scene = view.GameScene.create()
-    scene.logoImages = []
-    for (let i = 1; i < 4; ++i) scene.logoImages.push(
-      ResourceMap.get('logo' + i.toString() + '.png'))
+
+    scene.onPresent = () => { ResourceMap.get('Trailer_Theme_Ver1.mp3').play() }
+    scene.onMouseDown = function(button, position) {
+      const canvasSize = this.presenter.getCanvasSize()
+      console.log(position)
+      if (position.x < canvasSize.width && position.y < canvasSize.height) {
+        ResourceMap.get('Trailer_Theme_Ver1.mp3').stop()
+        this.presenter.presentScene(StageScene.create())
+      }
+    }
+
+    scene.update = function(deltaTime) {
+      displayText = true
+
+      scrollingOffsetX -= deltaOffsetX * deltaTime
+      if (scrollingOffsetX <= -tileSet.getTileSize().width) {
+        scrollingOffsetX = 0
+      }
+
+      tileStrip.update(deltaTime)
+      blinkingLogo.update(deltaTime)
+    }
 
     scene.render = function(context) {
       const canvasSize = this.presenter.getCanvasSize()
+
       context.fillStyle = 'rgb(0, 0, 0)'
       context.fillRect(0, 0, canvasSize.width, canvasSize.height)
-      const x = 0
-      const y = 0
-      context.drawImage(this.logoImages[2],
-        x, y,
-        this.logoImages[2].width * .5, this.logoImages[2].height * .5)
+
+      context.scale(2, 2)
+      for (let i = 0; i < 13; ++i)
+        tileStrip.render(i * 16 + Math.floor(scrollingOffsetX), 0, context)
+      context.setTransform(1, 0, 0, 1, 0, 0)
+
+      blinkingLogo.render(context,
+        canvasSize.width / 2, canvasSize.height / 2,
+        0.5)
+
+      if (displayText) {
+        const text = 'TAP/CLICK TO START'
+        context.fillStyle = 'rgb(0, 0, 0)'
+        context.font = "32px retro";
+
+        const x = canvasSize.width / 2 - context.measureText(text).width / 2
+        const y = canvasSize.height * 3 / 4
+        context.fillText(text, x, y)
+      }
     }
 
     return scene
@@ -104,18 +281,23 @@ const FadeTransitionScene = {
       oldSceneSnapshot.height = canvasSize.height
 
       const oldScene = this.presenter.getCurrentScene()
-      oldScene.render(oldSceneSnapshot.getContext('2d'))
+      let context = oldSceneSnapshot.getContext('2d')
+      context.imageSmoothingEnabled = false
+      oldScene.render(context)
 
       newSceneSnapshot = document.createElement('canvas')
       newSceneSnapshot.width = canvasSize.width
       newSceneSnapshot.height = canvasSize.height
 
       newScene.presenter = this.presenter
-      newScene.render(newSceneSnapshot.getContext('2d'))
+      context = newSceneSnapshot.getContext('2d')
+      context.imageSmoothingEnabled = false
+      newScene.render(context)
     }
 
     scene.update = function(deltaTime) {
       elapsedTime += deltaTime
+      if (elapsedTime >= halfDuration) newScene.update(deltaTime)
       if (elapsedTime >= duration) this.presenter.presentScene(newScene)
     }
 
@@ -144,7 +326,7 @@ exports.LogoScene = LogoScene
 exports.LoadingScene = LoadingScene
 exports.FadeTransitionScene = FadeTransitionScene
 
-},{"./resource":4,"./tilemap":5,"./view":6}],3:[function(require,module,exports){
+},{"./game_entities":4,"./resource":7,"./tilemap":8,"./view":9}],6:[function(require,module,exports){
 const Vector2 = {
   create: (x, y) => {
     return {
@@ -196,7 +378,7 @@ const Vector2 = {
 
 exports.Vector2 = Vector2
 
-},{}],4:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 const GameConfig = require('./config').GameConfig
 
 const ResourceMap = {
@@ -204,7 +386,7 @@ const ResourceMap = {
   init: function() {
     const resourcesRef = this.resources
     const isImage = (s) => s.match(/\.png/i) !== null
-    const isAudio = (s) => s.match(/\.wav/i) !== null
+    const isAudio = (s) => s.match(/\.wav/i) !== null || s.match(/\.mp3/i) !== null
     const isJSON = (s) => s.match(/\.json/i) !== null
     const promiseList = []
     for (const resource of GameConfig.RESOURCE_LIST) {
@@ -219,10 +401,16 @@ const ResourceMap = {
           const audio = new Audio()
           audio.onloadeddata = (status) => { resolve(audio) }
           audio.src = resource
-        })).then((audio) => { resourcesRef.set(resource, audio) }))
+        })).then((audio) => {
+          audio.stop = function() { this.pause(); this.currentTime = 0 }
+          resourcesRef.set(resource, audio)
+        }))
       } else if (isJSON(resource)) {
         promiseList.push((new Promise((resolve) => {
-          $.get(resource).then((data) => { resolve(data) })
+          $.get(resource).then((data) => {
+            if (typeof data === 'string') resolve(JSON.parse(data))
+            else resolve(data)
+          })
         })).then((data) => { resourcesRef.set(resource, data) }))
       }
     }
@@ -234,7 +422,7 @@ const ResourceMap = {
 
 exports.ResourceMap = ResourceMap
 
-},{"./config":1}],5:[function(require,module,exports){
+},{"./config":1}],8:[function(require,module,exports){
 const ResourceMap = require('./resource').ResourceMap
 
 const TileSet = {
@@ -272,7 +460,9 @@ const TileSet = {
     numColumns = Math.floor(image.width / tileWidth)
 
     return {
-      getTileSize: () => [tileWidth, tileHeight],
+      getTileSize: () => {
+        return {width: tileWidth, height: tileHeight}
+      },
       drawTile: (tileId, x, y, context) => {
         const xoffset = (tileId % numColumns) * tileWidth
         const yoffset = Math.floor(tileId / numColumns) * tileHeight
@@ -286,23 +476,68 @@ const TileSet = {
   }
 }
 
-exports.TileSet = TileSet
+const VerticalTileStrip = {
+  create: (tileSet, tileIds) => {
+    const animatedTileMap = new Map()
+    for (const tileId of tileIds) {
+      const animationInfo = tileSet.getTileAnimationInfo(tileId)
+      if (animationInfo !== undefined) {
+        if (!animatedTileMap.has(tileId)) {
+          animatedTileMap.set(tileId, {
+            currentFrame: 0,
+            elapsedTime: 0,
+            frames: animationInfo
+          })
+        }
+      }
+    }
 
-},{"./resource":4}],6:[function(require,module,exports){
+    return {
+      update: (deltaTime) => {
+        for (const k of animatedTileMap){
+          k[1].elapsedTime += deltaTime
+          while (k[1].elapsedTime >= k[1].frames[k[1].currentFrame].duration) {
+            k[1].elapsedTime -= k[1].frames[k[1].currentFrame].duration
+            k[1].currentFrame++
+            if (k[1].currentFrame >= k[1].frames.length) k[1].currentFrame = 0
+          }
+        }
+      },
+      render: (x, y, context) => {
+        for (const tileId of tileIds) {
+          if (!animatedTileMap.has(tileId)) {
+            tileSet.drawTile(tileId, x, y, context)
+          } else {
+            const animationInfo = animatedTileMap.get(tileId)
+            const currentFrame = animationInfo.currentFrame
+            const realTileId = animationInfo.frames[currentFrame].tileid
+            tileSet.drawTile(realTileId, x, y, context)
+          }
+
+          y += tileSet.getTileSize().height
+        }
+      }
+    }
+  }
+}
+
+exports.TileSet = TileSet
+exports.VerticalTileStrip = VerticalTileStrip
+
+},{"./resource":7}],9:[function(require,module,exports){
 const GamePresenter = {
   create: (canvas) => {
     let currentScene = GameScene.create()
-    let context = canvas.getContext('2d')
-    let scale = 1.0
 
     return {
       presentScene: function(nextScene) {
         nextScene.presenter = this
 
+        // setup events for PC or iPhone
         const is_iPhone = navigator.userAgent.match(/iPhone/gi) !== null
         if (!is_iPhone) {
-          canvas.width = 750
-          canvas.height = 1334
+          canvas.width = 750 / 2
+          canvas.height = 1334 / 2
 
           window.onkeydown = (event) => { nextScene.onKeyDown(event.key) }
           window.onkeyup = (event) => { nextScene.onKeyUp(event.key) }
@@ -319,6 +554,7 @@ const GamePresenter = {
           window.onmousemove = (event) => {
             nextScene.onMouseMove({x: event.clientX, y: event.clientY})
           }
+        } else {
         }
 
         nextScene.onPresent()
@@ -332,7 +568,11 @@ const GamePresenter = {
         }
       },
       update: (deltaTime) => { currentScene.update(deltaTime) },
-      render: () => { currentScene.render(context) }
+      render: () => {
+        const context = canvas.getContext('2d')
+        context.imageSmoothingEnabled = false
+        currentScene.render(context)
+      }
     }
   }
 }
@@ -342,11 +582,11 @@ const GameScene = {
     return {
       presenter: null,
       onPresent: () => {},
-      onKeyDown: (key) => { console.log(key) },
-      onKeyUp: (key) => { console.log(key) },
-      onMouseDown: (button, position) => { console.log(button) },
-      onMouseUp: (button, position) => { console.log(button) },
-      onMouseMove: (position) => { console.log(position) },
+      onKeyDown: (key) => {},
+      onKeyUp: (key) => {},
+      onMouseDown: (button, position) => {},
+      onMouseUp: (button, position) => {},
+      onMouseMove: (position) => {},
       update: (deltaTime) => {},
       render: (context) => {}
     }
@@ -390,4 +630,4 @@ const game = {
 
 module.exports = game
 
-},{"./game_scenes":2,"./linalg":3,"./resource":4,"./view":6}]},{},[]);
+},{"./game_scenes":5,"./linalg":6,"./resource":7,"./view":9}]},{},[]);

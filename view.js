@@ -1,8 +1,6 @@
 const GamePresenter = {
   create: (canvas) => {
     let currentScene = GameScene.create()
-    let context = canvas.getContext('2d')
-    let scale = 1.0
 
     return {
       presentScene: function(nextScene) {
@@ -11,8 +9,8 @@ const GamePresenter = {
         // setup events for PC or iPhone
         const is_iPhone = navigator.userAgent.match(/iPhone/gi) !== null
         if (!is_iPhone) {
-          canvas.width = 750
-          canvas.height = 1334
+          canvas.width = 750 / 2
+          canvas.height = 1334 / 2
 
           window.onkeydown = (event) => { nextScene.onKeyDown(event.key) }
           window.onkeyup = (event) => { nextScene.onKeyUp(event.key) }
@@ -43,7 +41,11 @@ const GamePresenter = {
         }
       },
       update: (deltaTime) => { currentScene.update(deltaTime) },
-      render: () => { currentScene.render(context) }
+      render: () => {
+        const context = canvas.getContext('2d')
+        context.imageSmoothingEnabled = false
+        currentScene.render(context)
+      }
     }
   }
 }

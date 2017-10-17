@@ -5,7 +5,7 @@ const ResourceMap = {
   init: function() {
     const resourcesRef = this.resources
     const isImage = (s) => s.match(/\.png/i) !== null
-    const isAudio = (s) => s.match(/\.wav/i) !== null
+    const isAudio = (s) => s.match(/\.wav/i) !== null || s.match(/\.mp3/i) !== null
     const isJSON = (s) => s.match(/\.json/i) !== null
     const promiseList = []
     for (const resource of GameConfig.RESOURCE_LIST) {
@@ -20,10 +20,16 @@ const ResourceMap = {
           const audio = new Audio()
           audio.onloadeddata = (status) => { resolve(audio) }
           audio.src = resource
-        })).then((audio) => { resourcesRef.set(resource, audio) }))
+        })).then((audio) => {
+          audio.stop = function() { this.pause(); this.currentTime = 0 }
+          resourcesRef.set(resource, audio)
+        }))
       } else if (isJSON(resource)) {
         promiseList.push((new Promise((resolve) => {
-          $.get(resource).then((data) => { resolve(data) })
+          $.get(resource).then((data) => {
+            if (typeof data === 'string') resolve(JSON.parse(data))
+            else resolve(data)
+          })
         })).then((data) => { resourcesRef.set(resource, data) }))
       }
     }

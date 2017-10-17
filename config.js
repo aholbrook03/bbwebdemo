@@ -6,7 +6,7 @@ const GameConfig = {
     return tmpList
   })(),
   RESOURCE_LIST: ['world_01_loop.wav', 'tileset.png', 'logo0.png', 'logo1.png',
-    'logo2.png', 'logo3.png', 'tileset.json']
+    'logo2.png', 'logo3.png', 'tileset.json', 'Trailer_Theme_Ver1.mp3']
 }
 
 exports.GameConfig = GameConfig
