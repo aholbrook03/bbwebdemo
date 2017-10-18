@@ -1,5 +1,105 @@
 const ResourceMap = require('./resource').ResourceMap
 
+const TileMap = {
+  create: (json, tileSet) => {
+    const BLANK_TILEID = 0
+    const FLIP_HORIZONTAL = 0x80000000
+    const FLIP_VERTICAL = 0x40000000
+    const FLIP_DIAGONAL = 0x20000000
+
+    const layers = []
+    for (const layer of json.layers) {
+      if (layer.type === 'tilelayer') {
+        const layerData = {
+          tiles: []
+        }
+
+        for (const tileId of layer.data) {
+          const tileOrientation = tileId & 0xE0000000
+          const realTileId = tileId & ~tileOrientation
+          layerData.tiles.push({
+            flipHorizontal: (tileOrientation & FLIP_HORIZONTAL) !== 0,
+            flipVertical: (tileOrientation & FLIP_VERTICAL) !== 0,
+            flipDiagonal: (tileOrientation & FLIP_DIAGONAL) !== 0,
+            tileId: realTileId
+          })
+        }
+
+        layers.push(layerData)
+      }
+    }
+
+    return {
+      getSizeInTiled: () => { return {
+        width: json.width,
+        height: json.height
+      }},
+      getSizeInPixels: () => { return {
+        width: json.width * json.tilewidth,
+        height: json.height * json.tileheight
+      }},
+      render: (x, y, context) => {
+        x = Math.floor(x)
+        y = Math.floor(y)
+
+        for (const layer of layers) {
+          let currentColumn = 0
+          let currentX = x
+          let currentY = y
+          for (const tile of layer.tiles) {
+            const tileId = tile.tileId
+            if (tileId !== BLANK_TILEID) {
+              let orientedX = currentX
+              let orientedY = currentY
+              let scaleX = 1
+              let scaleY = 1
+              let angle = 0
+
+              if (tile.flipDiagonal) {
+                scaleX = -1
+                angle = Math.PI / 2
+                orientedX = -currentX - json.tilewidth
+              }
+
+              if (tile.flipHorizontal) {
+                if (tile.flipDiagonal) {
+                  scaleX = 1
+                  orientedX = currentX
+                } else {
+                  scaleX = -1
+                  orientedX = -currentX - json.tilewidth
+                }
+              }
+
+              if (tile.flipVertical) {
+                scaleY = -1
+                orientedY = -currentY - json.tileheight
+              }
+
+              context.scale(scaleX, scaleY)
+              context.translate(Math.floor(json.tilewidth / 2 + orientedX),
+                Math.floor(json.tileheight /  2 + orientedY))
+              context.rotate(angle)
+              context.translate(Math.floor(-json.tilewidth / 2),
+                Math.floor(-json.tileheight /  2))
+              tileSet.drawTile(tileId - 1, 0, 0, context)
+              context.setTransform(1, 0, 0, 1, 0, 0)
+            }
+
+            currentX += json.tilewidth
+            currentColumn++
+            if (currentColumn === json.width) {
+              currentX = x
+              currentY += json.tileheight
+              currentColumn = 0
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 const TileSet = {
   createFromJSON: function(json) {
     const image = ResourceMap.get(json.image)
@@ -46,6 +146,13 @@ const TileSet = {
           tileWidth, tileHeight,
           x, y,
           tileWidth, tileHeight)
+      },
+      drawRotatedTile: function(tileId, x, y, angle, context) {
+        context.translate(tileWidth / 2 + x, tileHeight / 2 + y)
+        context.rotate(angle * Math.PI / 180)
+        context.translate(-tileWidth / 2, -tileHeight / 2)
+        this.drawTile(tileId, 0, 0, context)
+        context.setTransform(1, 0, 0, 1, 0, 0)
       }
     }
   }
@@ -96,5 +203,6 @@ const VerticalTileStrip = {
   }
 }
 
+exports.TileMap = TileMap
 exports.TileSet = TileSet
 exports.VerticalTileStrip = VerticalTileStrip

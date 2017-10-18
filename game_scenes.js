@@ -1,12 +1,139 @@
 const view = require('./view')
+const GameConfig = require('./config').GameConfig
 const ResourceMap = require('./resource').ResourceMap
 const TileSet = require('./tilemap').TileSet
+const TileMap = require('./tilemap').TileMap
 const VerticalTileStrip = require('./tilemap').VerticalTileStrip
 const BlinkingLogo = require('./game_entities').BlinkingLogo
 
 const StageScene = {
   create: () => {
     const scene = view.GameScene.create()
+    return scene
+  }
+}
+
+const StageSelectScene = {
+  create: () => {
+    const tileSet = TileSet.createFromJSON(ResourceMap.get('tileset.json'))
+    const scene = view.GameScene.create()
+    const stageTileMaps = []
+    let currentStageIndex = 0
+    let stageLabel = 'Stage 1-' + (currentStageIndex + 1).toString()
+
+    const ARROW_TILEIDS = [581, 613]
+    let arrowTileIdIndex = 0
+    const ARROW_BLINK_DELAY = 250
+    const ARROW_SCALE = 3
+    let leftArrowX = 0
+    let leftArrowY = 0
+    let rightArrowX = 0
+    let rightArrowY = 0
+
+    let elapsedTime = 0
+
+    scene.onPresent = function() {
+      for (const stageName of GameConfig.STAGE_LIST) {
+        stageTileMaps.push(TileMap.create(ResourceMap.get(stageName), tileSet))
+      }
+
+      const canvasSize = this.presenter.getCanvasSize()
+      const tileSize = tileSet.getTileSize()
+      const mapSize = stageTileMaps[currentStageIndex].getSizeInPixels()
+
+      // setup arrow positions
+      leftArrowX = 0
+      leftArrowY = Math.floor(canvasSize.height / 2 - tileSize.height / 2)
+      leftArrowY /= ARROW_SCALE
+      rightArrowX = Math.floor(canvasSize.width - tileSize.width * ARROW_SCALE)
+      rightArrowX /= ARROW_SCALE
+      rightArrowY = leftArrowY
+    }
+
+    scene.onMouseDown = (button, position) => {
+      const tileSize = tileSet.getTileSize()
+      let scaledArrowX = leftArrowX * ARROW_SCALE
+      let scaledArrowX2 = scaledArrowX + tileSize.width * ARROW_SCALE
+      let scaledArrowY = leftArrowY * ARROW_SCALE
+      let scaledArrowY2 = scaledArrowY + tileSize.height * ARROW_SCALE
+      if (position.x >= scaledArrowX && position.x <= scaledArrowX2) {
+        if (position.y >= scaledArrowY && position.y <= scaledArrowY2) {
+          currentStageIndex--
+          if (currentStageIndex === -1)
+            currentStageIndex = stageTileMaps.length - 1
+        }
+      }
+
+
+      scaledArrowX = rightArrowX * ARROW_SCALE
+      scaledArrowX2 = scaledArrowX + tileSize.width * ARROW_SCALE
+      scaledArrowY = rightArrowY * ARROW_SCALE
+      scaledArrowY2 = scaledArrowY + tileSize.height * ARROW_SCALE
+      if (position.x >= scaledArrowX && position.x <= scaledArrowX2) {
+        if (position.y >= scaledArrowY && position.y <= scaledArrowY2) {
+          currentStageIndex++
+          if (currentStageIndex === stageTileMaps.length) currentStageIndex = 0
+        }
+      }
+
+      stageLabel = 'Stage 1-' + (currentStageIndex + 1).toString()
+    }
+
+    scene.update = function(deltaTime) {
+      elapsedTime += deltaTime
+      while (elapsedTime >= ARROW_BLINK_DELAY) {
+        elapsedTime -= ARROW_BLINK_DELAY
+        arrowTileIdIndex++
+        if (arrowTileIdIndex === ARROW_TILEIDS.length) arrowTileIdIndex = 0
+      }
+      this.scrollingOffsetX -= this.deltaOffsetX * deltaTime
+      if (this.scrollingOffsetX <= -tileSet.getTileSize().width) {
+        this.scrollingOffsetX = 0
+      }
+
+      this.tileStrip.update(deltaTime)
+    }
+
+    scene.render = function(context) {
+
+      // draw background
+      context.scale(2, 2)
+      for (let i = 0; i < 13; ++i)
+        this.tileStrip.render(
+          i * 16 + Math.floor(this.scrollingOffsetX),
+          0,
+          context)
+      context.setTransform(1, 0, 0, 1, 0, 0)
+
+      // draw stage map
+      const canvasSize = this.presenter.getCanvasSize()
+      const tileSize = tileSet.getTileSize()
+      const tileMapSize = stageTileMaps[currentStageIndex].getSizeInPixels()
+      stageTileMaps[currentStageIndex].render(
+        canvasSize.width / 2 - tileMapSize.width / 2,
+        canvasSize.height / 2 - tileMapSize.height / 2,
+        context)
+
+      // draw arrows
+      context.scale(ARROW_SCALE, ARROW_SCALE)
+      tileSet.drawRotatedTile(ARROW_TILEIDS[arrowTileIdIndex],
+        leftArrowX, leftArrowY, -90, context)
+      context.setTransform(1, 0, 0, 1, 0, 0)
+
+      context.scale(ARROW_SCALE, ARROW_SCALE)
+      tileSet.drawRotatedTile(ARROW_TILEIDS[arrowTileIdIndex],
+        rightArrowX, rightArrowY, 90, context)
+      context.setTransform(1, 0, 0, 1, 0, 0)
+
+      // draw stage label
+      context.fillStyle = 'rgb(0, 0, 0)'
+      context.font = "32px retro";
+
+      const x = canvasSize.width / 2 - context.measureText(stageLabel).width / 2
+      const y = canvasSize.height / 2 + tileMapSize.height / 2 + 40
+      context.fillText(stageLabel, x, y)
+    }
+
     return scene
   }
 }
@@ -28,10 +155,13 @@ const LogoScene = {
     scene.onPresent = () => { ResourceMap.get('Trailer_Theme_Ver1.mp3').play() }
     scene.onMouseDown = function(button, position) {
       const canvasSize = this.presenter.getCanvasSize()
-      console.log(position)
       if (position.x < canvasSize.width && position.y < canvasSize.height) {
         ResourceMap.get('Trailer_Theme_Ver1.mp3').stop()
-        this.presenter.presentScene(StageScene.create())
+        const stageSelectScene = StageSelectScene.create()
+        stageSelectScene.tileStrip = tileStrip
+        stageSelectScene.scrollingOffsetX = scrollingOffsetX
+        stageSelectScene.deltaOffsetX = deltaOffsetX
+        this.presenter.presentScene(stageSelectScene)
       }
     }
 
@@ -49,9 +179,6 @@ const LogoScene = {
 
     scene.render = function(context) {
       const canvasSize = this.presenter.getCanvasSize()
-
-      context.fillStyle = 'rgb(0, 0, 0)'
-      context.fillRect(0, 0, canvasSize.width, canvasSize.height)
 
       context.scale(2, 2)
       for (let i = 0; i < 13; ++i)

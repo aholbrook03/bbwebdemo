@@ -34,6 +34,15 @@ const ResourceMap = {
       }
     }
 
+    for (const stageName of GameConfig.STAGE_LIST) {
+      promiseList.push((new Promise((resolve) => {
+        $.get(stageName).then((data) => {
+          if (typeof data === 'string') resolve(JSON.parse(data))
+          else resolve(data)
+        })
+      })).then((data) => { resourcesRef.set(stageName, data) }))
+    }
+
     return Promise.all(promiseList)
   },
   get: function(name) { return this.resources.get(name) }
