@@ -1,6 +1,7 @@
 const GameEntity = require('./entity').GameEntity
 const SpriteComponent = require('./game_components').SpriteComponent
 const ResourceMap = require('./resource').ResourceMap
+const Vector2 = require('./linalg').Vector2
 
 const BoulderBoy = {
   create: function() {
@@ -8,6 +9,15 @@ const BoulderBoy = {
     const spriteComponent = SpriteComponent.create()
 
     return entity
+  }
+}
+
+const ScrollingBackground = {
+  create: (image, imageScale, scrollVector, backgroundSize) => {
+    return {
+      render: (context) => {
+      }
+    }
   }
 }
 
@@ -67,7 +77,7 @@ const BlinkingLogo = {
           }
         }
       },
-      render: function(context, x, y, scale) {
+      render: function(x, y, scale, context) {
         const logoWidth = logoFrames[currentFrame].width * scale
         const logoHeight = logoFrames[currentFrame].height * scale
         context.drawImage(logoFrames[currentFrame],
@@ -79,4 +89,5 @@ const BlinkingLogo = {
 }
 
 exports.BoulderBoy = BoulderBoy
+exports.ScrollingBackground = ScrollingBackground
 exports.BlinkingLogo = BlinkingLogo

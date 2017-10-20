@@ -5,10 +5,23 @@ const TileSet = require('./tilemap').TileSet
 const TileMap = require('./tilemap').TileMap
 const VerticalTileStrip = require('./tilemap').VerticalTileStrip
 const BlinkingLogo = require('./game_entities').BlinkingLogo
+const ScrollingBackground = require('./game_entities').ScrollingBackground
+const Vector2 = require('./linalg').Vector2
 
 const StageScene = {
-  create: () => {
+  create: (name, tileMap) => {
+    const scrollingBackground = ScrollingBackground.create(
+      ResourceMap.get('logo3.png'),
+      Vector2.create(-1, -1).setLength(375 / 10000))
+    console.log(scrollingBackground)
     const scene = view.GameScene.create()
+
+    scene.onPresent = () => { ResourceMap.get('Trailer_Theme_Ver1.mp3').stop() }
+
+    scene.render = (context) => {
+      tileMap.render(0, 0, context)
+    }
+
     return scene
   }
 }
@@ -50,8 +63,10 @@ const StageSelectScene = {
       rightArrowY = leftArrowY
     }
 
-    scene.onMouseDown = (button, position) => {
+    scene.onMouseDown = function(button, position) {
       const tileSize = tileSet.getTileSize()
+
+      // check if left arrow was clicked
       let scaledArrowX = leftArrowX * ARROW_SCALE
       let scaledArrowX2 = scaledArrowX + tileSize.width * ARROW_SCALE
       let scaledArrowY = leftArrowY * ARROW_SCALE
@@ -64,7 +79,7 @@ const StageSelectScene = {
         }
       }
 
-
+      // check if right arrow was clicked
       scaledArrowX = rightArrowX * ARROW_SCALE
       scaledArrowX2 = scaledArrowX + tileSize.width * ARROW_SCALE
       scaledArrowY = rightArrowY * ARROW_SCALE
@@ -77,6 +92,20 @@ const StageSelectScene = {
       }
 
       stageLabel = 'Stage 1-' + (currentStageIndex + 1).toString()
+
+      // check if stage map was clicked
+      const canvasSize = this.presenter.getCanvasSize()
+      const tileMapSize = stageTileMaps[currentStageIndex].getSizeInPixels()
+      const mapX = canvasSize.width / 2 - tileMapSize.width / 2
+      const mapY = canvasSize.height / 2 - tileMapSize.height / 2
+      const mapX2 = mapX + tileMapSize.width
+      const mapY2 = mapY + tileMapSize.height
+      if (position.x >= mapX && position.x <= mapX2) {
+        if (position.y >= mapY && position.y <= mapY2) {
+          this.presenter.presentScene(StageScene.create(stageLabel,
+            stageTileMaps[currentStageIndex]))
+        }
+      }
     }
 
     scene.update = function(deltaTime) {
@@ -109,10 +138,9 @@ const StageSelectScene = {
       const canvasSize = this.presenter.getCanvasSize()
       const tileSize = tileSet.getTileSize()
       const tileMapSize = stageTileMaps[currentStageIndex].getSizeInPixels()
-      stageTileMaps[currentStageIndex].render(
-        canvasSize.width / 2 - tileMapSize.width / 2,
-        canvasSize.height / 2 - tileMapSize.height / 2,
-        context)
+      const mapX = canvasSize.width / 2 - tileMapSize.width / 2
+      const mapY = canvasSize.height / 2 - tileMapSize.height / 2
+      stageTileMaps[currentStageIndex].render(mapX, mapY, context)
 
       // draw arrows
       context.scale(ARROW_SCALE, ARROW_SCALE)
@@ -156,7 +184,6 @@ const LogoScene = {
     scene.onMouseDown = function(button, position) {
       const canvasSize = this.presenter.getCanvasSize()
       if (position.x < canvasSize.width && position.y < canvasSize.height) {
-        ResourceMap.get('Trailer_Theme_Ver1.mp3').stop()
         const stageSelectScene = StageSelectScene.create()
         stageSelectScene.tileStrip = tileStrip
         stageSelectScene.scrollingOffsetX = scrollingOffsetX
@@ -185,9 +212,8 @@ const LogoScene = {
         tileStrip.render(i * 16 + Math.floor(scrollingOffsetX), 0, context)
       context.setTransform(1, 0, 0, 1, 0, 0)
 
-      blinkingLogo.render(context,
-        canvasSize.width / 2, canvasSize.height / 2,
-        0.5)
+      blinkingLogo.render( canvasSize.width / 2, canvasSize.height / 2, 0.5,
+        context)
 
       if (displayText) {
         const text = 'TAP/CLICK TO START'

@@ -7,6 +7,7 @@ const TileMap = {
     const FLIP_VERTICAL = 0x40000000
     const FLIP_DIAGONAL = 0x20000000
 
+    const entities = []
     const layers = []
     for (const layer of json.layers) {
       if (layer.type === 'tilelayer') {
