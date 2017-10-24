@@ -1,7 +1,7 @@
 const GameConfig = {
   init: function() {
     const BoulderBoy = require('./game_entities').BoulderBoy
-    this.entityIds = {1: BoulderBoy}
+    this.entityIds = new Map([[422, BoulderBoy]])
   },
   TILESET_SOURCE: 'tileset.json',
   STAGE_LIST: (() => {

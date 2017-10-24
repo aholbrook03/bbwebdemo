@@ -57,6 +57,52 @@ const TileMap = {
         width: json.width * json.tilewidth,
         height: json.height * json.tileheight
       }},
+      getNumberOfLayers: () => layers.length,
+      findTile: (tileId) => {
+        const found = []
+        for (let layerIndex = 0; layerIndex < layers.length; ++layerIndex) {
+          let row = 0
+          let column = 0
+          for (const tile of layers[layerIndex].tiles) {
+            if (tile.tileId - FIRST_GID === tileId) {
+              found.push({layerIndex, row, column})
+            }
+
+            column++
+            if (column === json.width) {
+              row++
+              column = 0
+            }
+          }
+        }
+
+        return found
+      },
+      getTilesAt: (row, column) => {
+        const tiles = []
+        let layerIndex = 0
+        for (const layer of layers) {
+          const tileId = layer.tiles[row * json.width + column].tileId
+          if (tileId !== BLANK_TILEID) {
+            tiles.push({layerIndex: layerIndex, tileId: tileId - FIRST_GID})
+          }
+          layerIndex++
+        }
+
+        return tiles
+      },
+      removeTile: function(tileId) {
+        for (const found of this.findTile(tileId)) {
+          this.removeTileAt(found.layerIndex, found.row, found.column)
+        }
+
+        tileAnimationMap.delete(tileId)
+      },
+      removeTileAt: function(layerIndex, row, column) {
+        const tileId = layers[layerIndex].tiles[row * json.width + column].tileId - FIRST_GID
+        layers[layerIndex].tiles[row * json.width + column].tileId = BLANK_TILEID
+        if (this.findTile(tileId).length === 0) tileAnimationMap.delete(tileId)
+      },
       update: (deltaTime) => {
         for (const t of tileAnimationMap) {
           t[1].elapsedTime += deltaTime
@@ -108,7 +154,7 @@ const TileMap = {
                 scaleY = -1
                 orientedY = -currentY - json.tileheight
               }
-
+              
               context.scale(scaleX, scaleY)
               context.translate(Math.floor(json.tilewidth / 2 + orientedX),
                 Math.floor(json.tileheight /  2 + orientedY))
