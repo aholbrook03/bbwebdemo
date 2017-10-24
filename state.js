@@ -5,7 +5,7 @@ const StateMachine = {
     return {
       getCurrentState: () => currentState,
       enterState: (state) => {
-        state.onExit()
+        if (currentState !== null) currentState.onExit()
         currentState = state
         currentState.onEnter()
       },

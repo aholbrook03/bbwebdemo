@@ -1,5 +1,8 @@
 const Vector2 = {
   create: (x, y) => {
+    x = x !== undefined ? x : 0
+    y = y !== undefined ? y : 0
+    
     return {
       x: x,
       y: y,

@@ -1,4 +1,8 @@
 const GameConfig = {
+  init: function() {
+    const BoulderBoy = require('./game_entities').BoulderBoy
+    this.entityIds = {1: BoulderBoy}
+  },
   TILESET_SOURCE: 'tileset.json',
   STAGE_LIST: (() => {
     const tmpList = []

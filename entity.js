@@ -1,6 +1,7 @@
 const GameComponent = {
-  create: function() {
+  create: function(componentName) {
     return {
+      name: componentName,
       entity: null,
       update: function(deltaTime) {
       }
@@ -17,7 +18,13 @@ const GameEntity = {
         c.entity = this
         components.push(c)
       },
-      getComponents: () => components
+      getComponents: () => components,
+      getComponent: (name) => {
+        for (const c of components) if (c.name === name) return c
+      },
+      update: function(deltaTime) {
+        for (const c of components) c.update(deltaTime)
+      }
     }
   }
 }

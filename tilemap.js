@@ -1,4 +1,5 @@
 const ResourceMap = require('./resource').ResourceMap
+const GameConfig = require('./config').GameConfig
 
 const TileMap = {
   create: (json, tileSet) => {
@@ -6,8 +7,11 @@ const TileMap = {
     const FLIP_HORIZONTAL = 0x80000000
     const FLIP_VERTICAL = 0x40000000
     const FLIP_DIAGONAL = 0x20000000
+    const ORIENTATION_BITS = FLIP_HORIZONTAL | FLIP_VERTICAL | FLIP_DIAGONAL
+    const FIRST_GID = 1
 
-    const entities = []
+    const tileAnimationMap = new Map()
+
     const layers = []
     for (const layer of json.layers) {
       if (layer.type === 'tilelayer') {
@@ -16,14 +20,27 @@ const TileMap = {
         }
 
         for (const tileId of layer.data) {
-          const tileOrientation = tileId & 0xE0000000
+          const tileOrientation = tileId & ORIENTATION_BITS
           const realTileId = tileId & ~tileOrientation
-          layerData.tiles.push({
+          const tileObj = {
             flipHorizontal: (tileOrientation & FLIP_HORIZONTAL) !== 0,
             flipVertical: (tileOrientation & FLIP_VERTICAL) !== 0,
             flipDiagonal: (tileOrientation & FLIP_DIAGONAL) !== 0,
             tileId: realTileId
-          })
+          }
+
+          layerData.tiles.push(tileObj)
+
+          const animationInfo = tileSet.getTileAnimationInfo(realTileId - FIRST_GID)
+          if (animationInfo !== undefined) {
+            if (!tileAnimationMap.has(realTileId - FIRST_GID)) {
+              tileAnimationMap.set(realTileId - FIRST_GID, {
+                frames: animationInfo,
+                currentFrameIndex: 0,
+                elapsedTime: 0
+              })
+            }
+          }
         }
 
         layers.push(layerData)
@@ -31,6 +48,7 @@ const TileMap = {
     }
 
     return {
+      getTileSet: () => tileSet,
       getSizeInTiled: () => { return {
         width: json.width,
         height: json.height
@@ -39,6 +57,20 @@ const TileMap = {
         width: json.width * json.tilewidth,
         height: json.height * json.tileheight
       }},
+      update: (deltaTime) => {
+        for (const t of tileAnimationMap) {
+          t[1].elapsedTime += deltaTime
+          let frameDuration = t[1].frames[t[1].currentFrameIndex].duration
+          while (t[1].elapsedTime >= frameDuration) {
+            t[1].elapsedTime -= frameDuration
+            t[1].currentFrameIndex++
+            if (t[1].currentFrameIndex === t[1].frames.length) {
+              t[1].currentFrameIndex = 0
+            }
+            frameDuration = t[1].frames[t[1].currentFrameIndex].duration
+          }
+        }
+      },
       render: (x, y, context) => {
         x = Math.floor(x)
         y = Math.floor(y)
@@ -83,7 +115,17 @@ const TileMap = {
               context.rotate(angle)
               context.translate(Math.floor(-json.tilewidth / 2),
                 Math.floor(-json.tileheight /  2))
-              tileSet.drawTile(tileId - 1, 0, 0, context)
+
+              if (tileAnimationMap.has(tileId - FIRST_GID)) {
+                const animationInfo = tileAnimationMap.get(tileId - FIRST_GID)
+                const frames = animationInfo.frames
+                const currentFrameIndex = animationInfo.currentFrameIndex
+                const currentFrameTileId = frames[currentFrameIndex].tileid
+                tileSet.drawTile(currentFrameTileId, 0, 0, context)
+              } else {
+                tileSet.drawTile(tileId - FIRST_GID, 0, 0, context)
+              }
+
               context.setTransform(1, 0, 0, 1, 0, 0)
             }
 

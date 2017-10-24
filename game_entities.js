@@ -2,11 +2,14 @@ const GameEntity = require('./entity').GameEntity
 const SpriteComponent = require('./game_components').SpriteComponent
 const ResourceMap = require('./resource').ResourceMap
 const Vector2 = require('./linalg').Vector2
+const GameConfig = require('./config').GameConfig
 
 const BoulderBoy = {
-  create: function() {
+  create: function(tileSet) {
     const entity = GameEntity.create('Boulder Boy')
     const spriteComponent = SpriteComponent.create()
+    spriteComponent.addAnimationFromTileSet('idle',
+      GameConfig.boulderBoyIds.idleLeft, tileSet)
 
     return entity
   }

@@ -4,6 +4,7 @@ const ResourceMap = require('./resource').ResourceMap
 const TileSet = require('./tilemap').TileSet
 const TileMap = require('./tilemap').TileMap
 const VerticalTileStrip = require('./tilemap').VerticalTileStrip
+const BoulderBoy = require('./game_entities').BoulderBoy
 const BlinkingLogo = require('./game_entities').BlinkingLogo
 const ScrollingBackground = require('./game_entities').ScrollingBackground
 const Vector2 = require('./linalg').Vector2
@@ -13,10 +14,16 @@ const StageScene = {
     const scrollingBackground = ScrollingBackground.create(
       ResourceMap.get('logo3.png'),
       Vector2.create(-1, -1).setLength(375 / 10000))
-    console.log(scrollingBackground)
+
     const scene = view.GameScene.create()
+    scene.player = BoulderBoy.create(tileMap.getTileSet())
 
     scene.onPresent = () => { ResourceMap.get('Trailer_Theme_Ver1.mp3').stop() }
+
+    scene.update = function(deltaTime) {
+      tileMap.update(deltaTime)
+      this.player.update(deltaTime)
+    }
 
     scene.render = (context) => {
       tileMap.render(0, 0, context)

@@ -4,9 +4,11 @@ const LogoScene = require('./game_scenes').LogoScene
 const FadeTransitionScene = require('./game_scenes').FadeTransitionScene
 const ResourceMap = require('./resource').ResourceMap
 const Vector2 = require('./linalg').Vector2
+const GameConfig = require('./config').GameConfig
 
 const game = {
   init: function(canvas) {
+    GameConfig.init()
     this.presenter = view.GamePresenter.create(canvas)
     this.startTime = null
 
