@@ -30,6 +30,7 @@ const GamePresenter = {
         } else {
         }
 
+        currentScene.onExit()
         nextScene.onPresent()
         currentScene = nextScene
       },
@@ -54,7 +55,9 @@ const GameScene = {
   create: () => {
     return {
       presenter: null,
+      scale: 1.0,
       onPresent: () => {},
+      onExit: () => {},
       onKeyDown: (key) => {},
       onKeyUp: (key) => {},
       onMouseDown: (button, position) => {},

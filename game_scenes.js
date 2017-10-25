@@ -7,38 +7,205 @@ const VerticalTileStrip = require('./tilemap').VerticalTileStrip
 const BoulderBoy = require('./game_entities').BoulderBoy
 const BlinkingLogo = require('./game_entities').BlinkingLogo
 const ScrollingBackground = require('./game_entities').ScrollingBackground
+const SpriteDirection = require('./game_components').SpriteDirection
 const Vector2 = require('./linalg').Vector2
 
 const StageScene = {
-  create: (name, tileMap) => {
+  create: (stageIndex, name, tileMap) => {
     const scrollingBackground = ScrollingBackground.create(
       ResourceMap.get('logo3.png'),
-      Vector2.create(-1, -1).setLength(375 / 10000))
+      Vector2.create(-1, -1).setLength(375 / 10000.0))
 
     const scene = view.GameScene.create()
-    scene.player = BoulderBoy.create(tileMap.getTileSet())
 
-    scene.onPresent = () => { ResourceMap.get('Trailer_Theme_Ver1.mp3').stop() }
+    scene.onPresent = () => {
+      ResourceMap.get('Trailer_Theme_Ver1.mp3').stop()
+      ResourceMap.get('world_01_loop.wav').play()
+    }
+
+    scene.onExit = () => {
+      ResourceMap.get('world_01_loop.wav').stop()
+    }
+
+    scene.onKeyDown = function(key) {
+      if (key === 'ArrowUp') {
+        upPressed = true
+      } else if (key === 'ArrowDown') {
+        downPressed = true
+      } else if (key === 'ArrowLeft') {
+        leftPressed = true
+      } else if (key === 'ArrowRight') {
+        rightPressed = true
+      }
+    }
+
+    scene.onKeyUp = function(key) {
+      if (key === 'ArrowUp') {
+        upPressed = false
+      } else if (key === 'ArrowDown') {
+        downPressed = false
+      } else if (key === 'ArrowLeft') {
+        leftPressed = false
+      } else if (key === 'ArrowRight') {
+        rightPressed = false
+      }
+    }
 
     scene.update = function(deltaTime) {
+
+      // key check
+      if (player.state === 'idle') {
+        if (upPressed) {
+          player.rollUp()
+          player.state = 'roll'
+        } else if (downPressed) {
+          player.rollDown()
+          player.state = 'roll'
+        } else if (leftPressed) {
+          player.rollLeft()
+          player.state = 'roll'
+        } else if (rightPressed) {
+          player.rollRight()
+          player.state = 'roll'
+        }
+      } else if (player.state === 'roll') {
+        if (upPressed) {
+          if (player.velocity.y >= 0) {
+            player.rollUp()
+          }
+        } else if (downPressed) {
+          if (player.velocity.y <= 0) {
+            player.rollDown()
+          }
+        } else if (leftPressed) {
+          if (player.velocity.x >= 0) {
+            player.rollLeft()
+          }
+        } else if (rightPressed) {
+          if (player.velocity.x <= 0) {
+            player.rollRight()
+          }
+        } else {
+          player.stopMoving()
+          player.state = 'idle'
+        }
+      }
+
       tileMap.update(deltaTime)
-      this.player.update(deltaTime)
+
+      const tileSize = tileMap.getTileSet().getTileSize()
+      const offset = Vector2.create(tileSize.width / 2, tileSize.height / 2)
+      const playerOldPos = player.position.copy()
+
+      player.update(deltaTime)
+
+      // check for player to tile collision
+
+      // check vertical movement
+      let tiles = tileMap.getTilesInRadius(playerOldPos.x + offset.x,
+        player.position.y + offset.y, GameConfig.boulderBoyRadius)
+      for (const tile of tiles) {
+        const tileProperties = tileMap.getTileSet().getTileProperties(tile.tileId)
+        if (tileProperties.solid) {
+          player.position.y = playerOldPos.y
+        }
+      }
+
+      // check horizontal movement
+      tiles = tileMap.getTilesInRadius(player.position.x + offset.x,
+        playerOldPos.y + offset.y, GameConfig.boulderBoyRadius)
+      for (const tile of tiles) {
+        const tileProperties = tileMap.getTileSet().getTileProperties(tile.tileId)
+        if (tileProperties.solid) {
+          player.position.x = playerOldPos.x
+        }
+      }
+
+      // check player to tilemap edge collision
+      const tileMapSize = tileMap.getSizeInPixels()
+      if (player.position.y < 0) {
+        player.position.y = 0
+      } else if (player.position.y + tileSize.height >= tileMapSize.height) {
+        player.position.y = tileMapSize.height - tileSize.height
+      }
+
+      if (player.position.x < 0) {
+        player.position.x = 0
+      } else if (player.position.x + tileSize.width >= tileMapSize.width) {
+        player.position.x = tileMapSize.width - tileSize.width
+      }
+
+      const playerCenterPos = player.position.copy().add(offset)
+
+      for (const enemy of enemyEntities) {
+        enemy.update(deltaTime)
+
+        // check for enemy collision
+        const enemyCenterPos = enemy.position.copy().add(offset)
+        const dist = enemyCenterPos.sub(playerCenterPos).length()
+        if (dist <= GameConfig.boulderBoyRadius + GameConfig.enemyRadius) {
+          this.presenter.presentScene(StageSelectScene.create(stageIndex))
+        }
+      }
     }
 
     scene.render = (context) => {
       tileMap.render(0, 0, context)
+      player.render(context)
+
+      for (const enemy of enemyEntities) enemy.render(context)
     }
+
+    const player = BoulderBoy.create(tileMap.getTileSet())
+
+    {
+      const tile = tileMap.findTile(GameConfig.boulderBoyIds.idle)
+      const tileSize = tileMap.getTileSet().getTileSize()
+      player.position.x = tile[0].column * tileSize.width
+      player.position.y = tile[0].row * tileSize.height
+
+      const orientation = tileMap.getTileOrientation(tile[0].layerIndex,
+        tile[0].row,
+        tile[0].column)
+      if (orientation.flipHorizontal) player.setDirection(SpriteDirection.LEFT)
+    }
+
+    tileMap.removeTile(GameConfig.boulderBoyIds.idle)
+
+    const enemyEntities = []
+
+    for (const e of GameConfig.entityIds) {
+      const found = tileMap.findTile(e[0])
+      for (const f of found) {
+        const entity = e[1].create(tileMap.getTileSet())
+        const tileSize = tileMap.getTileSet().getTileSize()
+        entity.position.x = f.column * tileSize.width
+        entity.position.y = f.row * tileSize.height
+
+        const orientation = tileMap.getTileOrientation(f.layerIndex, f.row,
+          f.column)
+        if (orientation.flipHorizontal) entity.setDirection(SpriteDirection.RIGHT)
+        enemyEntities.push(entity)
+      }
+
+      tileMap.removeTile(e[0])
+    }
+
+    let upPressed = false
+    let downPressed = false
+    let leftPressed = false
+    let rightPressed = false
 
     return scene
   }
 }
 
 const StageSelectScene = {
-  create: () => {
+  create: (stageIndex) => {
     const tileSet = TileSet.createFromJSON(ResourceMap.get('tileset.json'))
     const scene = view.GameScene.create()
     const stageTileMaps = []
-    let currentStageIndex = 0
+    let currentStageIndex = stageIndex === undefined ? 0 : stageIndex
     let stageLabel = 'Stage 1-' + (currentStageIndex + 1).toString()
 
     const ARROW_TILEIDS = [581, 613]
@@ -51,6 +218,12 @@ const StageSelectScene = {
     let rightArrowY = 0
 
     let elapsedTime = 0
+
+    scene.tileStrip = VerticalTileStrip.create(tileSet,
+      [4, 4, 4, 4, 102, 101, 101, 193, 2, 2, 2, 129, 3, 3, 3, 3, 132, 704, 704,
+        704, 704])
+    scene.scrollingOffsetX = 0
+    scene.deltaOffsetX = GameConfig.stageSelectBackgroundScrollSpeed
 
     scene.onPresent = function() {
       for (const stageName of GameConfig.STAGE_LIST) {
@@ -109,8 +282,8 @@ const StageSelectScene = {
       const mapY2 = mapY + tileMapSize.height
       if (position.x >= mapX && position.x <= mapX2) {
         if (position.y >= mapY && position.y <= mapY2) {
-          this.presenter.presentScene(StageScene.create(stageLabel,
-            stageTileMaps[currentStageIndex]))
+          this.presenter.presentScene(StageScene.create(currentStageIndex,
+            stageLabel, stageTileMaps[currentStageIndex]))
         }
       }
     }
@@ -181,7 +354,7 @@ const LogoScene = {
       [4, 4, 4, 4, 102, 101, 101, 193, 2, 2, 2, 129, 3, 3, 3, 3, 132, 704, 704,
         704, 704])
     let scrollingOffsetX = 0
-    const deltaOffsetX = 375.0 / 15000.0
+    const deltaOffsetX = GameConfig.stageSelectBackgroundScrollSpeed
 
     const blinkingLogo = BlinkingLogo.create()
     let displayText = false

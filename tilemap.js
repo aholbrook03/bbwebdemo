@@ -48,14 +48,15 @@ const TileMap = {
     }
 
     return {
+      scale: 1.0,
       getTileSet: () => tileSet,
-      getSizeInTiled: () => { return {
+      getSizeInTiles: () => { return {
         width: json.width,
         height: json.height
       }},
-      getSizeInPixels: () => { return {
-        width: json.width * json.tilewidth,
-        height: json.height * json.tileheight
+      getSizeInPixels: function() { return {
+        width: json.width * json.tilewidth * this.scale,
+        height: json.height * json.tileheight * this.scale
       }},
       getNumberOfLayers: () => layers.length,
       findTile: (tileId) => {
@@ -91,6 +92,25 @@ const TileMap = {
 
         return tiles
       },
+      getTilesInRadius: function(x, y, radius) {
+        const tileSize = tileSet.getTileSize()
+        const startRow = Math.floor((y - radius) / tileSize.height)
+        const startColumn = Math.floor((x - radius) / tileSize.width)
+        const endRow = Math.floor((y + radius) / tileSize.height)
+        const endColumn = Math.floor((x + radius) / tileSize.width)
+
+        const tiles = []
+        for (let row = startRow; row <= endRow; ++row) {
+          for (let column = startColumn; column <= endColumn; ++column) {
+            for (const tile of this.getTilesAt(row, column)) tiles.push(tile)
+          }
+        }
+
+        return tiles
+      },
+      getTileOrientation: function(layerIndex, row, column) {
+        return layers[layerIndex].tiles[row * json.width + column]
+      },
       removeTile: function(tileId) {
         for (const found of this.findTile(tileId)) {
           this.removeTileAt(found.layerIndex, found.row, found.column)
@@ -113,11 +133,12 @@ const TileMap = {
             if (t[1].currentFrameIndex === t[1].frames.length) {
               t[1].currentFrameIndex = 0
             }
+
             frameDuration = t[1].frames[t[1].currentFrameIndex].duration
           }
         }
       },
-      render: (x, y, context) => {
+      render: function(x, y, context) {
         x = Math.floor(x)
         y = Math.floor(y)
 
@@ -126,35 +147,36 @@ const TileMap = {
           let currentX = x
           let currentY = y
           for (const tile of layer.tiles) {
+
             const tileId = tile.tileId
             if (tileId !== BLANK_TILEID) {
               let orientedX = currentX
               let orientedY = currentY
-              let scaleX = 1
-              let scaleY = 1
+              let scaleX = this.scale
+              let scaleY = this.scale
               let angle = 0
 
               if (tile.flipDiagonal) {
-                scaleX = -1
+                scaleX = -this.scale
                 angle = Math.PI / 2
                 orientedX = -currentX - json.tilewidth
               }
 
               if (tile.flipHorizontal) {
                 if (tile.flipDiagonal) {
-                  scaleX = 1
+                  scaleX = this.scale
                   orientedX = currentX
                 } else {
-                  scaleX = -1
+                  scaleX = -this.scale
                   orientedX = -currentX - json.tilewidth
                 }
               }
 
               if (tile.flipVertical) {
-                scaleY = -1
+                scaleY = -this.scale
                 orientedY = -currentY - json.tileheight
               }
-              
+
               context.scale(scaleX, scaleY)
               context.translate(Math.floor(json.tilewidth / 2 + orientedX),
                 Math.floor(json.tileheight /  2 + orientedY))
