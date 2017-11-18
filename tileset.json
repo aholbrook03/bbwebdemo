@@ -519,6 +519,42 @@
     },
  "tiles":
     {
+     "11":
+        {
+         "animation":[
+                {
+                 "duration":100,
+                 "tileid":11
+                }, 
+                {
+                 "duration":100,
+                 "tileid":43
+                }, 
+                {
+                 "duration":100,
+                 "tileid":75
+                }, 
+                {
+                 "duration":100,
+                 "tileid":107
+                }, 
+                {
+                 "duration":100,
+                 "tileid":139
+                }, 
+                {
+                 "duration":100,
+                 "tileid":171
+                }, 
+                {
+                 "duration":100,
+                 "tileid":203
+                }, 
+                {
+                 "duration":100,
+                 "tileid":235
+                }]
+        },
      "13":
         {
          "animation":[

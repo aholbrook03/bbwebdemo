@@ -94,7 +94,7 @@ const StageScene = {
       tileMap.update(deltaTime)
 
       const tileSize = tileMap.getTileSet().getTileSize()
-      const offset = Vector2.create(tileSize.width / 2, tileSize.height / 2)
+      const offsetToCenter = Vector2.create(tileSize.width / 2, tileSize.height / 2)
       const playerOldPos = player.position.copy()
 
       player.update(deltaTime)
@@ -102,8 +102,8 @@ const StageScene = {
       // check for player to tile collision
 
       // check vertical movement
-      let tiles = tileMap.getTilesInRadius(playerOldPos.x + offset.x,
-        player.position.y + offset.y, GameConfig.boulderBoyRadius)
+      let tiles = tileMap.getTilesInRadius(playerOldPos.x + offsetToCenter.x,
+        player.position.y + offsetToCenter.y, GameConfig.boulderBoyRadius)
       for (const tile of tiles) {
         const tileProperties = tileMap.getTileSet().getTileProperties(tile.tileId)
         if (tileProperties.solid) {
@@ -112,8 +112,8 @@ const StageScene = {
       }
 
       // check horizontal movement
-      tiles = tileMap.getTilesInRadius(player.position.x + offset.x,
-        playerOldPos.y + offset.y, GameConfig.boulderBoyRadius)
+      tiles = tileMap.getTilesInRadius(player.position.x + offsetToCenter.x,
+        playerOldPos.y + offsetToCenter.y, GameConfig.boulderBoyRadius)
       for (const tile of tiles) {
         const tileProperties = tileMap.getTileSet().getTileProperties(tile.tileId)
         if (tileProperties.solid) {
@@ -135,13 +135,13 @@ const StageScene = {
         player.position.x = tileMapSize.width - tileSize.width
       }
 
-      const playerCenterPos = player.position.copy().add(offset)
+      const playerCenterPos = player.position.copy().add(offsetToCenter)
 
       for (const enemy of enemyEntities) {
         enemy.update(deltaTime)
 
         // check for enemy collision
-        const enemyCenterPos = enemy.position.copy().add(offset)
+        const enemyCenterPos = enemy.position.copy().add(offsetToCenter)
         const dist = enemyCenterPos.sub(playerCenterPos).length()
         if (dist <= GameConfig.boulderBoyRadius + GameConfig.enemyRadius) {
           this.presenter.presentScene(StageSelectScene.create(stageIndex))
@@ -177,14 +177,22 @@ const StageScene = {
     for (const e of GameConfig.entityIds) {
       const found = tileMap.findTile(e[0])
       for (const f of found) {
-        const entity = e[1].create(tileMap.getTileSet())
+        const entityObject = e[1] instanceof Array ? e[1][0] : e[1]
+
+        const entity = entityObject.create(tileMap.getTileSet())
         const tileSize = tileMap.getTileSet().getTileSize()
         entity.position.x = f.column * tileSize.width
         entity.position.y = f.row * tileSize.height
 
         const orientation = tileMap.getTileOrientation(f.layerIndex, f.row,
           f.column)
+
         if (orientation.flipHorizontal) entity.setDirection(SpriteDirection.RIGHT)
+        if (e[1] instanceof Array) entity.setDirection(e[1][1])
+        if (entity.getComponent('AimAndShoot') !== undefined) {
+          entity.getComponent('AimAndShoot').setTarget(player)
+        }
+        
         enemyEntities.push(entity)
       }
 

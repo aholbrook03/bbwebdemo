@@ -1,6 +1,8 @@
 const GameEntity = require('./entity').GameEntity
 const SpriteDirection = require('./game_components').SpriteDirection
 const SpriteComponent = require('./game_components').SpriteComponent
+const AimAndShootComponent = require('./game_components').AimAndShootComponent
+const AimDirection = require('./game_components').AimDirection
 const ResourceMap = require('./resource').ResourceMap
 const Vector2 = require('./linalg').Vector2
 const GameConfig = require('./config').GameConfig
@@ -131,8 +133,28 @@ const Squirrel = {
 
     entity.addComponent(spriteComponent)
 
+    const aimAndShootComponent = AimAndShootComponent.create(tileSet)
+    aimAndShootComponent.setAimDirection(AimDirection.FACING)
+    aimAndShootComponent.setProjectileEntity(Acorn)
+    aimAndShootComponent.shouldFreezeTarget = false
+    aimAndShootComponent.projectileSpeed = GameConfig.squirrelProjectileSpeed
+    entity.addComponent(aimAndShootComponent)
+
     entity.setDirection = function(direction) {
       spriteComponent.direction = direction
+      if (direction === SpriteDirection.UP) {
+        spriteComponent.useAnimation('up')
+      } else if (direction === SpriteDirection.DOWN) {
+        spriteComponent.useAnimation('down')
+      }
+    }
+
+    entity.superUpdate = entity.update
+    entity.update = function(deltaTime) {
+      this.superUpdate(deltaTime)
+      for (const projectile of aimAndShootComponent.projectileList) {
+        projectile.update(deltaTime)
+      }
     }
 
     entity.render = function(context) {
@@ -140,7 +162,7 @@ const Squirrel = {
       let y = Math.floor(this.position.y)
       const tileId = spriteComponent.getCurrentFrameTileId()
 
-      if (spriteComponent.direction !== SpriteDirection.LEFT) {
+      if (spriteComponent.direction === SpriteDirection.RIGHT) {
         x += tileSet.getTileSize().width
         context.translate(x * this.scale, y * this.scale)
         context.scale(-this.scale, this.scale)
@@ -149,6 +171,39 @@ const Squirrel = {
         context.scale(this.scale, this.scale)
       }
 
+      tileSet.drawTile(tileId, 0, 0, context)
+      context.setTransform(1, 0, 0, 1, 0, 0)
+
+      for (const projectile of aimAndShootComponent.projectileList) {
+        projectile.render(context)
+      }
+    }
+
+    return entity
+  }
+}
+
+const Acorn = {
+  create: function(tileSet) {
+    const entity = GameEntity.create('Acorn')
+
+    const spriteComponent = SpriteComponent.create()
+    spriteComponent.direction = SpriteDirection.LEFT
+
+    for (const v in GameConfig.acornIds) {
+      spriteComponent.addAnimationFromTileSet(v, GameConfig.acornIds[v],
+        tileSet)
+    }
+
+    entity.addComponent(spriteComponent)
+
+    entity.render = function(context) {
+      let x = Math.floor(this.position.x)
+      let y = Math.floor(this.position.y)
+      const tileId = spriteComponent.getCurrentFrameTileId()
+
+      context.translate(x * this.scale, y * this.scale)
+      context.scale(this.scale, this.scale)
       tileSet.drawTile(tileId, 0, 0, context)
       context.setTransform(1, 0, 0, 1, 0, 0)
     }

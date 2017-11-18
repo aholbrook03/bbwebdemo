@@ -1,8 +1,13 @@
+const SpriteDirection = require('./game_components').SpriteDirection
+
 const GameConfig = {
   init: function() {
     const Snake = require('./game_entities').Snake
     const Squirrel = require('./game_entities').Squirrel
-    this.entityIds = new Map([[9, Snake], [14, Squirrel]])
+    this.entityIds = new Map([[9, Snake], [14, Squirrel],
+      [238, [Squirrel, SpriteDirection.UP]],
+      [367, [Squirrel, SpriteDirection.DOWN]]
+    ])
   },
   TILESET_SOURCE: 'tileset.json',
   STAGE_LIST: (() => {
@@ -16,14 +21,18 @@ const GameConfig = {
     idle: 422, roll: 205, rollUp: 461, rollDown: 462
   },
   squirrelIds: {
-    idle: 14, throw: 15
+    idle: 14, throw: 15, up: 238, down: 367
   },
   snakeIds: {
     idle: 9
   },
+  acornIds: {
+    idle: 11
+  },
   boulderBoySpeed: 16 / 500.0,
   boulderBoyRadius: 5,
   enemyRadius: 5,
+  squirrelProjectileSpeed: 32 / 500.0,
   stageSelectBackgroundScrollSpeed: 375.0 / 15000.0
 }
 

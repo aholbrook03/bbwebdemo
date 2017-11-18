@@ -108,6 +108,8 @@ const TileMap = {
 
         return tiles
       },
+      getTilesInRect: function(x, y, width, height) {
+      },
       getTileOrientation: function(layerIndex, row, column) {
         return layers[layerIndex].tiles[row * json.width + column]
       },
